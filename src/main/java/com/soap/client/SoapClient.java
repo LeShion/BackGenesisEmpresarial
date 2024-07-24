@@ -5,6 +5,7 @@ package com.soap.client;
 
 
 import org.springframework.ws.client.core.support.WebServiceGatewaySupport;
+import org.springframework.ws.soap.client.SoapFaultClientException;
 import org.springframework.ws.soap.client.core.SoapActionCallback;
 
 import com.soap.wsdl.ArrayOfVar;
@@ -70,37 +71,38 @@ public class SoapClient extends WebServiceGatewaySupport{
 	public TipoCambioFechaInicialResponse getTipoCambioFechaInicialResponse(String fecha) {
 	    TipoCambioFechaInicial request = new TipoCambioFechaInicial();
 	    request.setFechainit(fecha);
-	    
+
 	    SoapActionCallback soapActionCallback = new SoapActionCallback("http://www.banguat.gob.gt/variables/ws/TipoCambioFechaInicial");
-	    
-	 // Obtener la respuesta del servicio web
-	    TipoCambioFechaInicialResponse response = (TipoCambioFechaInicialResponse) getWebServiceTemplate()
-	            .marshalSendAndReceive("https://www.banguat.gob.gt/variables/ws/TipoCambio.asmx", request, soapActionCallback);
-	    
-	    // Imprimir la respuesta en consola
-	    System.out.println("Respuesta del servicio web:");
-	    if (response != null) {
-	        ArrayOfVar vars = response.getTipoCambioFechaInicialResult().getVars();
-	        if (vars != null) {
-	            // Imprimir encabezados de la tabla
-	            System.out.println("Fecha\tCompra\tVenta\tMoneda");
-	            
-	            // Imprimir datos de cada Var en formato de tabla
-	            for (Var var : vars.getVar()) {
-	                System.out.println(var.getFecha() + "\t" +
-	                                   var.getCompra() + "\t" +
-	                                   var.getVenta() + "\t" +
-	                                   var.getMoneda());
+
+	    try {
+	        TipoCambioFechaInicialResponse response = (TipoCambioFechaInicialResponse) getWebServiceTemplate()
+	                .marshalSendAndReceive("https://www.banguat.gob.gt/variables/ws/TipoCambio.asmx", request, soapActionCallback);
+
+	        // Verificar la respuesta
+	        if (response != null) {
+	            ArrayOfVar vars = response.getTipoCambioFechaInicialResult().getVars();
+	            if (vars != null) {
+	                for (Var var : vars.getVar()) {
+	                    System.out.println(var.getFecha() + "\t" +
+	                                       var.getCompra() + "\t" +
+	                                       var.getVenta() + "\t" +
+	                                       var.getMoneda());
+	                }
+	            } else {
+	                System.out.println("No se encontraron datos en la respuesta.");
 	            }
 	        } else {
-	            System.out.println("No se encontraron datos en la respuesta.");
+	            System.out.println("Respuesta SOAP no válida o nula.");
 	        }
-	    } else {
-	        System.out.println("Respuesta SOAP no válida o nula.");
+
+	        return response;
+	    } catch (SoapFaultClientException e) {
+	        System.err.println("Error de SOAP: " + e.getMessage());
+	        throw e;
+	    } catch (Exception e) {
+	        System.err.println("Error general: " + e.getMessage());
+	        throw new RuntimeException("Error al procesar la solicitud SOAP", e);
 	    }
-	    
-	    // Retornar la respuesta
-	    return response;
 	}
 	
 	

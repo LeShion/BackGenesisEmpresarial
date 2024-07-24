@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.ws.soap.client.SoapFaultClientException;
 
 import com.soap.client.SoapClient;
 import com.soap.entity.ParamFechaInit;
@@ -144,36 +145,38 @@ public class SoapController {
 	@PostMapping(value="/tipoCambioFechaInicial", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> tipoCambioFechaInicial(@RequestBody ParamFechaInit paramFechaInit) {
 	    try {
-	        // Crear la solicitud SOAP con la fecha inicial proporcionada
 	        TipoCambioFechaInicialResponse tipoCambioFechaInicialResponse = soapClient.getTipoCambioFechaInicialResponse(paramFechaInit.getFecha_ini());
 
-	        // Procesar la respuesta y extraer los datos necesarios
-	        ArrayOfVar arrayOfVar = tipoCambioFechaInicialResponse.getTipoCambioFechaInicialResult().getVars();
-	        List<Var> varList = arrayOfVar.getVar();
-	        
-	     // Ordenar la lista de tasas de venta en orden descendente
-	        varList.sort((var1, var2) -> Double.compare(var2.getVenta(), var1.getVenta()));
+	        if (tipoCambioFechaInicialResponse != null) {
+	            ArrayOfVar arrayOfVar = tipoCambioFechaInicialResponse.getTipoCambioFechaInicialResult().getVars();
+	            if (arrayOfVar != null) {
+	                List<Var> varList = arrayOfVar.getVar();
+	                varList.sort((var1, var2) -> Double.compare(var2.getVenta(), var1.getVenta()));
 
-	        List<Map<String,Object>> varMapList = new ArrayList<>();
-	        for(Var var : varList) {
-	            Map<String, Object> varMap = new HashMap<>();
-	            varMap.put("moneda", var.getMoneda());
-	            varMap.put("fecha", var.getFecha());
-	            varMap.put("venta", var.getVenta());
-	            varMap.put("compra", var.getCompra());
-	            varMapList.add(varMap);
+	                List<Map<String, Object>> varMapList = new ArrayList<>();
+	                for (Var var : varList) {
+	                    Map<String, Object> varMap = new HashMap<>();
+	                    varMap.put("moneda", var.getMoneda());
+	                    varMap.put("fecha", var.getFecha());
+	                    varMap.put("venta", var.getVenta());
+	                    varMap.put("compra", var.getCompra());
+	                    varMapList.add(varMap);
+	                }
+
+	                Map<String, Object> response = new HashMap<>();
+	                response.put("resultado", varMapList);
+
+	                return ResponseEntity.ok().body(response);
+	            } else {
+	                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("No se encontraron datos en la respuesta del servicio SOAP.");
+	            }
+	        } else {
+	            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Respuesta del servicio SOAP no válida.");
 	        }
-
-	        // Construir la respuesta JSON
-	        Map<String, Object> response = new HashMap<>();
-	        response.put("resultado", varMapList);
-
-	        // Devolver la respuesta exitosa
-	        return ResponseEntity.ok().body(response);
+	    } catch (SoapFaultClientException e) {
+	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error en la solicitud SOAP: " + e.getMessage());
 	    } catch (Exception e) {
-	        
-	        e.printStackTrace(); // Imprimir la pila de errores en la consola
-	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno al procesar la solicitud.");
+	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno al procesar la solicitud: " + e.getMessage());
 	    }
 	}
 }
